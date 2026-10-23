@@ -12,7 +12,7 @@
     "origin": "original",
     "source": "USAPhO Guide",
     "url": "",
-    "statement": "A swimmer moves at 1.6 m/s relative to the water. The river flows at 1.2 m/s. She points herself straight across a 40 m wide river. How far downstream, in meters, does she land?",
+    "statement": "A swimmer moves at 1.6 m/s relative to the water. The river flows at 1.2 m/s. She points herself straight across a 40 m wide river. How far downstream, in meters, does she land? (edited only in problems.json)",
     "answer": 30,
     "unit": "m",
     "solution": "The two velocity components are independent. Crossing time is set by the perpendicular component alone: $t = 40/1.6 = 25$ s. In that time the current carries her $1.2 \\times 25 = 30$ m downstream."
