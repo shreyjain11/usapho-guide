@@ -69,6 +69,10 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const [syncing, setSyncing] = useState(false);
   const userId = session?.user?.id ?? null;
   const loadedFor = useRef<string | null>(null);
+  // The account the remote copy has been read and merged for. Nothing is
+  // pushed until then: pushing first would overwrite the account's progress
+  // with whatever happens to be on this device.
+  const [pulledFor, setPulledFor] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // local storage is the always-available baseline
@@ -101,7 +105,13 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       .select("modules, problems")
       .eq("user_id", userId)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        // a stale reply for an account that has since signed out
+        if (loadedFor.current !== userId) return;
+        setSyncing(false);
+        // If the read failed, the account copy is unknown, so keep this
+        // device's progress local rather than overwrite it.
+        if (error) return;
         if (data) {
           setState((local) =>
             mergeProgress(local, {
@@ -110,13 +120,13 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
             })
           );
         }
-        setSyncing(false);
+        setPulledFor(userId);
       });
   }, [client, userId, ready]);
 
-  // debounced push of any change to the account
+  // debounced push of any change to the account, once it has been read
   useEffect(() => {
-    if (!client || !userId || !ready) return;
+    if (!client || !userId || !ready || pulledFor !== userId) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       client
@@ -135,10 +145,14 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [state, client, userId, ready]);
+  }, [state, client, userId, ready, pulledFor]);
 
   useEffect(() => {
-    if (!userId) loadedFor.current = null;
+    if (!userId) {
+      loadedFor.current = null;
+      setPulledFor(null);
+      setSyncing(false);
+    }
   }, [userId]);
 
   const setModuleStatus = useCallback((slug: string, status: ModuleStatus) => {
@@ -166,14 +180,14 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...state,
       ready,
-      synced: Boolean(userId),
+      synced: Boolean(userId) && pulledFor === userId,
       syncing,
       setModuleStatus,
       cycleProblem,
       setProblem,
       reset,
     }),
-    [state, ready, userId, syncing, setModuleStatus, cycleProblem, setProblem, reset]
+    [state, ready, userId, pulledFor, syncing, setModuleStatus, cycleProblem, setProblem, reset]
   );
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;

@@ -28,13 +28,13 @@ export default function ProgressPage() {
         </h1>
 
         <p className="sans mt-3 text-sm text-[var(--ink-soft)]">
-          {synced ? (
-            syncing ? (
-              "Syncing with your account."
-            ) : (
-              "Saved to your account and available on any device you sign in from."
-            )
-          ) : configured && !session ? (
+          {syncing ? (
+            "Syncing with your account."
+          ) : synced ? (
+            "Saved to your account and available on any device you sign in from."
+          ) : session ? (
+            "Could not reach your account, so this is saved in this browser for now. Reload to try again."
+          ) : configured ? (
             <>
               Saved in this browser only.{" "}
               <Link href="/login" className="link">
