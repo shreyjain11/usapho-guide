@@ -12,14 +12,27 @@ import {
 
 /**
  * Accepts the ways people actually write numbers: 3.75e10, 3.75E10,
- * 3.75x10^10, 3.75 × 10^10, and thousands separators.
+ * 3.75x10^10, 3.75 × 10^10, 3.75·10^{10}, 10^-3, a typographic minus sign
+ * (−, as pasted from a PDF or a calculator app), thousands separators, and
+ * the problem's own unit typed after the number.
  */
-function parseAnswer(raw: string): number | null {
-  const text = raw.trim().replace(/,/g, "").replace(/\s+/g, "");
+function parseAnswer(raw: string, unit = ""): number | null {
+  let text = raw
+    .trim()
+    .replace(/[\u2212\u2012\u2013\u2014]/g, "-")
+    .replace(/,/g, "")
+    .replace(/\s+/g, "");
+  const u = unit.replace(/\s+/g, "");
+  if (u && text.toLowerCase().endsWith(u.toLowerCase()))
+    text = text.slice(0, -u.length);
+  text = text.replace(/[{}]/g, "");
   if (!text) return null;
 
-  const sci = text.match(/^([+-]?\d*\.?\d+)[x×*]10\^?([+-]?\d+)$/i);
+  const sci = text.match(/^([+-]?\d*\.?\d+)[x×*·⋅]10\^?([+-]?\d+)$/i);
   if (sci) return Number(sci[1]) * Math.pow(10, Number(sci[2]));
+
+  const pow = text.match(/^([+-]?)10\^([+-]?\d+)$/);
+  if (pow) return (pow[1] === "-" ? -1 : 1) * Math.pow(10, Number(pow[2]));
 
   const val = Number(text);
   return Number.isFinite(val) ? val : null;
@@ -65,12 +78,16 @@ function BankProblemInner({
   const solved = status === "solved" || status === "reviewed";
 
   const [input, setInput] = useState("");
-  const [verdict, setVerdict] = useState<"right" | "wrong" | null>(null);
+  const [verdict, setVerdict] = useState<"right" | "wrong" | "unreadable" | null>(
+    null
+  );
   const [showSolution, setShowSolution] = useState(false);
 
   const check = () => {
-    const val = parseAnswer(input);
-    if (val === null || p.answer === null) return;
+    if (p.answer === null || !input.trim()) return;
+    const val = parseAnswer(input, p.unit);
+    // say so, rather than leave the reader wondering whether Check did anything
+    if (val === null) return setVerdict("unreadable");
     // 2% relative, with an absolute floor so answers of exactly zero are not
     // judged against a zero-width window
     const tolerance = Math.max(Math.abs(p.answer) * 0.02, 1e-9);
@@ -128,11 +145,13 @@ function BankProblemInner({
               onKeyDown={(e) => e.key === "Enter" && check()}
               placeholder="Answer"
               title="Scientific notation is fine: 3.75e10 or 3.75x10^10"
+              aria-label={p.unit ? `Answer, in ${p.unit}` : "Answer"}
+              aria-invalid={verdict === "wrong" || verdict === "unreadable"}
               className="w-32"
               style={
                 verdict === "right"
                   ? { borderColor: "var(--ok)", background: "var(--ok-bg)" }
-                  : verdict === "wrong"
+                  : verdict === "wrong" || verdict === "unreadable"
                   ? { borderColor: "var(--bad)", background: "var(--bad-bg)" }
                   : undefined
               }
@@ -143,14 +162,21 @@ function BankProblemInner({
             <button onClick={check} className="btn">
               Check
             </button>
-            {verdict === "right" && (
-              <span className="sans text-sm font-medium text-[var(--ok)]">
-                Correct
-              </span>
-            )}
-            {verdict === "wrong" && (
-              <span className="sans text-sm text-[var(--bad)]">Not that</span>
-            )}
+            {/* announced to screen readers, which otherwise only see a
+                border colour change */}
+            <span role="status" aria-live="polite" className="sans text-sm">
+              {verdict === "right" && (
+                <span className="font-medium text-[var(--ok)]">Correct</span>
+              )}
+              {verdict === "wrong" && (
+                <span className="text-[var(--bad)]">Not that</span>
+              )}
+              {verdict === "unreadable" && (
+                <span className="text-[var(--bad)]">
+                  Enter a number, such as 3.75e10
+                </span>
+              )}
+            </span>
             <button
               onClick={() => setShowSolution((v) => !v)}
               className="sans ml-auto text-sm text-[var(--accent)] underline underline-offset-2"
