@@ -10,10 +10,15 @@ import {
   isSolvable,
 } from "@/lib/problem-types";
 
-/** A plain decimal, or scientific notation written 3.75e10 or 3.75x10^10. */
+/**
+ * A plain decimal, scientific notation written 3.75e10, 3.75x10^10 or
+ * 3.75·10^{10}, or a bare power of ten such as 10^-3.
+ */
 function parseScalar(text: string): number | null {
-  const sci = text.match(/^([+-]?\d*\.?\d+)[x×*]10\^?([+-]?\d+)$/i);
+  const sci = text.match(/^([+-]?\d*\.?\d+)[x×*·⋅]10\^?([+-]?\d+)$/i);
   if (sci) return Number(sci[1]) * Math.pow(10, Number(sci[2]));
+  const pow = text.match(/^([+-]?)10\^([+-]?\d+)$/);
+  if (pow) return (pow[1] === "-" ? -1 : 1) * Math.pow(10, Number(pow[2]));
   const val = Number(text);
   return Number.isFinite(val) ? val : null;
 }
@@ -21,11 +26,22 @@ function parseScalar(text: string): number | null {
 /**
  * Accepts the ways people actually write a physics answer: 3.75e10,
  * 3.75x10^10, thousands separators, a fraction like 3/4, and multiples of
- * pi like pi, 2pi, pi/2 or 3pi/4 (also written π). Returns null if it is not
- * one clean number, so a wrong-format entry is never read as a stray value.
+ * pi like pi, 2pi, pi/2 or 3pi/4 (also written π). Also the typographic
+ * minus sign (−, as pasted from a PDF or a phone calculator) and the
+ * problem's own unit typed after the number. Returns null if it is not one
+ * clean number, so a wrong-format entry is never read as a stray value.
  */
-function parseAnswer(raw: string): number | null {
-  const text = raw.trim().replace(/,/g, "").replace(/\s+/g, "").replace(/π/g, "pi");
+function parseAnswer(raw: string, unit = ""): number | null {
+  let text = raw
+    .trim()
+    .replace(/[\u2212\u2012\u2013]/g, "-")
+    .replace(/,/g, "")
+    .replace(/\s+/g, "")
+    .replace(/π/g, "pi");
+  const u = unit.replace(/\s+/g, "");
+  if (u && text.length > u.length && text.toLowerCase().endsWith(u.toLowerCase()))
+    text = text.slice(0, -u.length);
+  text = text.replace(/[{}]/g, "");
   if (!text) return null;
 
   // a multiple of pi: [coef]pi[/denom], e.g. pi, -2pi, pi/2, 3pi/4
@@ -87,12 +103,16 @@ function BankProblemInner({
   const solved = status === "solved" || status === "reviewed";
 
   const [input, setInput] = useState("");
-  const [verdict, setVerdict] = useState<"right" | "wrong" | null>(null);
+  const [verdict, setVerdict] = useState<
+    "right" | "wrong" | "unreadable" | null
+  >(null);
   const [showSolution, setShowSolution] = useState(false);
 
   const check = () => {
-    const val = parseAnswer(input);
-    if (val === null || p.answer === null) return;
+    if (p.answer === null || !input.trim()) return;
+    const val = parseAnswer(input, p.unit);
+    // say so, rather than leave the reader wondering whether Check did anything
+    if (val === null) return setVerdict("unreadable");
     // 2% relative, with an absolute floor so answers of exactly zero are not
     // judged against a zero-width window
     const tolerance = Math.max(Math.abs(p.answer) * 0.02, 1e-9);
@@ -154,12 +174,13 @@ function BankProblemInner({
               onKeyDown={(e) => e.key === "Enter" && check()}
               placeholder="Answer"
               aria-label={p.unit ? `Answer in ${p.unit}` : "Answer"}
+              aria-invalid={verdict === "wrong" || verdict === "unreadable"}
               title="You can enter 3.75e10, 3.75x10^10, a fraction like 3/4, or a multiple of pi like pi/2"
               className="w-32"
               style={
                 verdict === "right"
                   ? { borderColor: "var(--ok)", background: "var(--ok-bg)" }
-                  : verdict === "wrong"
+                  : verdict === "wrong" || verdict === "unreadable"
                   ? { borderColor: "var(--bad)", background: "var(--bad-bg)" }
                   : undefined
               }
@@ -170,14 +191,21 @@ function BankProblemInner({
             <button onClick={check} className="btn">
               Check
             </button>
-            {verdict === "right" && (
-              <span className="sans text-sm font-medium text-[var(--ok)]">
-                Correct
-              </span>
-            )}
-            {verdict === "wrong" && (
-              <span className="sans text-sm text-[var(--bad)]">Not that</span>
-            )}
+            {/* a live region, so screen readers hear the verdict rather
+                than miss a border colour change */}
+            <span role="status" className="sans text-sm">
+              {verdict === "right" && (
+                <span className="font-medium text-[var(--ok)]">Correct</span>
+              )}
+              {verdict === "wrong" && (
+                <span className="text-[var(--bad)]">Not that</span>
+              )}
+              {verdict === "unreadable" && (
+                <span className="text-[var(--bad)]">
+                  Enter one number, like 3.75e10 or 3/4
+                </span>
+              )}
+            </span>
             <button
               onClick={() => setShowSolution((v) => !v)}
               className="sans ml-auto text-sm text-[var(--accent)] underline underline-offset-2"
