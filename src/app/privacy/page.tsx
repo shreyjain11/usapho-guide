@@ -54,8 +54,9 @@ export default function PrivacyPage() {
       <ul>
         <li>The pages you view and when.</li>
         <li>
-          The site or link that brought you here (for example a search engine, or
-          a tag like <code>?utm_source=reddit</code> on a link we shared).
+          The site that brought you here (for example a search engine, or a tag
+          like <code>?utm_source=reddit</code> on a link we shared). We keep only
+          the site&apos;s address, such as reddit.com, not the page you came from.
         </li>
         <li>
           Actions on the site: checking an answer (and whether it was right),

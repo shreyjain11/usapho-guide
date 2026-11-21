@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { referringSite } from "@/lib/referrer";
 
 /**
  * usapho.one/discord: a short link to the community server that we can share
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
   const ua = request.headers.get("user-agent") ?? "";
   const bot = /bot|crawl|spider|preview|discord|slack|facebookexternalhit|embed/i.test(ua);
   if (url && key && !bot && process.env.VERCEL_ENV === "production") {
-    const ref = request.headers.get("referer");
+    const ref = referringSite(request.headers.get("referer"));
     try {
       await fetch(`${url}/rest/v1/analytics_events`, {
         method: "POST",
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({
           event: "discord_click",
           path: "/discord",
-          referrer: ref?.slice(0, 300) ?? null,
+          referrer: ref,
           utm_source: (q.get("utm_source") ?? q.get("ref"))?.slice(0, 80) ?? null,
           utm_medium: q.get("utm_medium")?.slice(0, 80) ?? null,
           utm_campaign: q.get("utm_campaign")?.slice(0, 120) ?? null,

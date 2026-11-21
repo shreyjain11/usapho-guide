@@ -1,6 +1,7 @@
 "use client";
 
 import { authConfigured, createClient } from "@/lib/supabase/client";
+import { referringSite } from "@/lib/referrer";
 
 /**
  * First-party analytics. Events go straight into our own Supabase table
@@ -74,15 +75,13 @@ function sessionId() {
   }
 }
 
-/** The referrer and utm tags of the visit that started this session. */
+/** The referring site and utm tags of the visit that started this session. */
 function touch() {
   try {
     const saved = sessionStorage.getItem(TOUCH_KEY);
     if (saved) return JSON.parse(saved) as Record<string, string | null>;
     const q = new URLSearchParams(window.location.search);
-    const ref = document.referrer && !document.referrer.includes("usapho.one")
-      ? document.referrer.slice(0, 300)
-      : null;
+    const ref = referringSite(document.referrer);
     const t = {
       referrer: ref,
       utm_source: q.get("utm_source") ?? q.get("ref"),
