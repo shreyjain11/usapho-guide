@@ -28,10 +28,22 @@ export function setAnalyticsUser(id: string | null) {
   userId = id;
 }
 
+/**
+ * True when the browser asks sites not to track it: Global Privacy Control
+ * (navigator.globalPrivacyControl, sent by Firefox, Brave, DuckDuckGo and
+ * privacy extensions) or the older Do Not Track setting.
+ */
+function optedOut() {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
+  return nav.globalPrivacyControl === true || nav.doNotTrack === "1";
+}
+
 function enabled() {
   if (typeof window === "undefined" || !authConfigured) return false;
   if (window.location.hostname !== "usapho.one") return false;
   if (navigator.webdriver) return false;
+  if (optedOut()) return false;
   return true;
 }
 

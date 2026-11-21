@@ -135,7 +135,11 @@ export default function PrivacyPage() {
       <h2>Your choices and rights</h2>
       <ul>
         <li>Use the Guide without an account.</li>
-        <li>Clear your browser storage, or use a content blocker, to stop or reset analytics.</li>
+        <li>
+          Turn on Global Privacy Control or Do Not Track in your browser, and we
+          record no analytics events for you. Clearing your browser storage
+          resets your visitor ID.
+        </li>
         <li>
           Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> to see,
           correct, export or delete your information. We will answer within 30 days.

@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams;
   const ua = request.headers.get("user-agent") ?? "";
   const bot = /bot|crawl|spider|preview|discord|slack|facebookexternalhit|embed/i.test(ua);
-  if (url && key && !bot && process.env.VERCEL_ENV === "production") {
+  // the same opt-out signals the in-page analytics honours
+  const optedOut =
+    request.headers.get("sec-gpc") === "1" || request.headers.get("dnt") === "1";
+  if (url && key && !bot && !optedOut && process.env.VERCEL_ENV === "production") {
     const ref = request.headers.get("referer");
     try {
       await fetch(`${url}/rest/v1/analytics_events`, {
